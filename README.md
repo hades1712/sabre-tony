@@ -76,3 +76,4 @@ Comactor
 Compactor主要用于对采集到的数据进行压缩，实现将数据存储至对象存储时节省空间。
 
 本次使用Thanos 与S3对接，降低Prometheus的成本，如下图架构：
+![avatar](https://github.com/hades1712/sabre-tony/blob/master/thanos.png)
