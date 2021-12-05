@@ -1,0 +1,16 @@
+es2s3:
+  account: '376298759571'
+  region: us-west-2
+  vpc:
+    use_existing: true  # need to update the code when it's No
+    vpc_id: vpc-0f575717415a0eebd
+    security_group_id: sg-0ccb81ba7366f61a8 # use the same sg as app nodes
+  s3:
+    bucket_name: sabre-es-s3-repo-rpchina
+  lambda:
+    es_repo_name: daily-snapshot-repo
+    es_endpoint: https://vpc-sabre-vxcvlxatlhmms3j7mghafpvfj4.us-west-2.es.amazonaws.com/  # include https:// and trailing /
+    es_index_prefix: logging-
+    snapshot_retention: '9'
+    index_retention: '7'
+

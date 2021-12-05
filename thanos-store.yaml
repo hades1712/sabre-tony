@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thanos-store-k8s
+  namespace: monitoring
+  labels:
+    app: thanos-store-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thanos-store-k8s
+  template:
+    metadata:
+      labels:
+        app: thanos-store-k8s
+    spec:
+      serviceAccountName: prometheus-k8s
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io: monitoring
+      tolerations:
+        - key: "node-role.kubernetes.io"
+          operator: "Equal"
+          value: "monitoring"
+          effect: "NoSchedule"
+      containers:
+      - name: thanos-store-k8s
+        image: quay.io/thanos/thanos:v0.11.0
+        args:
+        - store
+        - --log.level=debug
+        - --data-dir=/var/thanos/store
+        - --grpc-address=0.0.0.0:10901
+        - --http-address=0.0.0.0:10902
+        - --objstore.config=$(OBJSTORE_CONFIG)
+        ports:
+        - containerPort: 10901
+          name: grpc
+        - containerPort: 10902
+          name: http
+        volumeMounts:
+        - mountPath: /var/thanos/store
+          name: local-cache
+          readOnly: false
+        env:
+        - name: OBJSTORE_CONFIG
+          valueFrom:
+            secretKeyRef:
+              key: thanos.yaml
+              name: thanos-objectstorage-k8s
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /-/healthy
+            port: 10902
+            scheme: HTTP
+          periodSeconds: 30
+        readinessProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /-/ready
+            port: 10902
+            scheme: HTTP
+          periodSeconds: 5
+      terminationGracePeriodSeconds: 120
+      volumes:
+      - name: local-cache
+        emptyDir: {}

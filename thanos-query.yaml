@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thanos-query-k8s
+  namespace: monitoring
+  labels:
+    app: thanos-query
+    thanos-query: k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thanos-query
+      thanos-query: k8s
+  template:
+    metadata:
+      labels:
+        app: thanos-query
+        thanos-query: k8s
+    spec:
+      serviceAccountName: prometheus-k8s
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io: monitoring
+      tolerations:
+        - key: "node-role.kubernetes.io"
+          operator: "Equal"
+          value: "monitoring"
+          effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - prometheus
+                  - thanos-query
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+      containers:
+      - name: thanos-query-k8s
+        image: quay.io/thanos/thanos:v0.11.0
+        args:
+        - query
+        - --log.level=debug
+        - --query.replica-label=prometheus_replica
+        - --store=dnssrv+_grpc._tcp.prometheus-k8s.monitoring.svc.cluster.local
+        - --store=dnssrv+_grpc._tcp.thanos-store-k8s.monitoring.svc.cluster.local
+        ports:
+        - name: http
+          containerPort: 10902
+        - name: grpc
+          containerPort: 10901
+        resources:
+          requests:
+            cpu: '2'

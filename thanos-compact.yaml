@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thanos-compact-k8s
+  namespace: monitoring
+  labels:
+    app: thanos-compact-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thanos-compact-k8s
+  template:
+    metadata:
+      labels:
+        app: thanos-compact-k8s
+    spec:
+      serviceAccountName: prometheus-k8s
+      nodeSelector:
+        kubernetes.io/os: linux
+        node-role.kubernetes.io: monitoring
+      tolerations:
+        - key: "node-role.kubernetes.io"
+          operator: "Equal"
+          value: "monitoring"
+          effect: "NoSchedule"
+      containers:
+      - name: thanos-compact-k8s
+        image: quay.io/thanos/thanos:v0.11.0
+        args:
+        - compact
+        - --log.level=debug
+        - --wait
+        - --data-dir=/var/thanos/compact
+        - --debug.accept-malformed-index
+        - --retention.resolution-raw=30d
+        - --retention.resolution-5m=30d
+        - --retention.resolution-1h=30d
+        - --http-address=0.0.0.0:10902
+        - --objstore.config=$(OBJSTORE_CONFIG)
+        ports:
+        - containerPort: 10902
+          name: http
+        env:
+        - name: OBJSTORE_CONFIG
+          valueFrom:
+            secretKeyRef:
+              key: thanos.yaml
+              name: thanos-objectstorage-k8s
+        livenessProbe:
+          failureThreshold: 4
+          httpGet:
+            path: /-/healthy
+            port: 10902
+            scheme: HTTP
+          periodSeconds: 30
+        readinessProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /-/ready
+            port: 10902
+            scheme: HTTP
+          periodSeconds: 5
+        volumeMounts:
+        - mountPath: /var/thanos/compact
+          name: local-cache
+          readOnly: false
+      terminationGracePeriodSeconds: 120
+      volumes:
+      - name: local-cache
+        emptyDir: {}
